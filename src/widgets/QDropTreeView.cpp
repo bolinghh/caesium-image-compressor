@@ -34,9 +34,7 @@ void QDropTreeView::dropEvent(QDropEvent* event)
             if (QFileInfo(absolutePath).isFile()) {
                 fileList << url.toLocalFile();
             } else if (QFileInfo(absolutePath).isDir()) {
-                QSettings settings;
-                bool scanSubfolders = settings.value("preferences/general/import_subfolders", true).toBool();
-                fileList.append(Importer::scanDirectory(absolutePath, scanSubfolders));
+                fileList.append(absolutePath);
             }
         }
     }

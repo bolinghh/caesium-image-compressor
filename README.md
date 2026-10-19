@@ -24,8 +24,7 @@ Try it directly on browser at [caesium.app](https://caesium.app)
 
 ### What is it for
 
-Caesium is an image compression software that helps you store, send and share digital pictures, supporting JPG, PNG and
-WebP formats.
+Caesium is an image compression software that helps you store, send and share digital pictures, supporting JPG, PNG, WebP and TIFF formats. macOS builds additionally support AVIF and HEIC/HEIF input and AVIF/HEIC output.
 You can quickly reduce the file size (and resolution, if you want) by preserving the overall quality of the image.
 
 ### Supported Platforms
@@ -36,6 +35,11 @@ You can quickly reduce the file size (and resolution, if you want) by preserving
 - **Linux**: tested on Ubuntu 22.04 and Manjaro
 
 Note: only 64bit versions are supported
+
+AVIF/HEIC support currently targets 8-bit SDR static images. HDR, gain maps, depth maps,
+animated sequences and additional photos in one container are rejected explicitly. Ordinary thumbnails are allowed.
+Quality, target-size and actual lossless encoding are supported; an unattainable size target is reported.
+JPEG output composites transparency onto white.
 
 ### Installation
 
@@ -59,20 +63,29 @@ Please open an [issue](https://github.com/Lymphatus/caesium-image-compressor/iss
 
 - [Rust](https://www.rust-lang.org/tools/install): required to
   compile [libcaesium](https://github.com/Lymphatus/libcaesium). Make sure you have `cargo` executable on you `$PATH`
-- [Qt6 SDK](https://www.qt.io/download/): binaries are built on 6.8.0 (open source)
-- [libssh](https://www.libssh.org/): macOS only
-- [Sparkle](https://sparkle-project.org/): macOS only. Only version 1.27.1 is supported.
+- CMake 3.19 or later and a C++17 compiler
+- [Qt6 SDK](https://www.qt.io/download/): active Windows and Ubuntu CI builds use 6.8.2 (open source),
+  with `qtimageformats`. Include LinguistTools and Qt Test for the default test build.
+  Qt6 is required. Use `-DBUILD_TESTING=OFF` to omit Qt Test.
+- [Sparkle](https://sparkle-project.org/): macOS only, version 1.27.1.
+- macOS AVIF/HEIC dependencies: use the pinned source build below; details and licenses are in [third-party notes](docs/third-party.md).
 
 #### Build
 
 ##### Step 0 (macOS Only)
 
-You need to set up Sparkle in order to compile the project
+Build the pinned codecs for arm64 and macOS 12, and extract Sparkle locally:
 
+```sh
+python3 scripts/build-macos-deps.py
+curl --fail --location https://github.com/sparkle-project/Sparkle/releases/download/1.27.1/Sparkle-1.27.1.tar.xz -o build/Sparkle.tar.xz
+echo '20d729f8ca4d07911da31fe0296880cd3176b71738deaf2b7f8de2d96cf63f4e  build/Sparkle.tar.xz' | shasum -a 256 -c -
+mkdir -p build/sparkle
+tar -xf build/Sparkle.tar.xz -C build/sparkle
 ```
-brew install --cask https://raw.githubusercontent.com/Homebrew/homebrew-cask/c6dfe6baf1639998ba1707f68668cf8fa97bac9d/Casks/sparkle.rb
-sudo cp -R /usr/local/Caskroom/sparkle/1.27.1/Sparkle.framework /Library/Frameworks/Sparkle.framework
-```
+
+`ENABLE_HEIF` defaults on for macOS and off elsewhere. For an existing-format-only build,
+use `-DENABLE_HEIF=OFF`. To intentionally omit Sparkle, use `-DENABLE_MACOS_UPDATER=OFF`.
 
 ##### Step 1
 
@@ -88,7 +101,7 @@ cmake -B build_dir -DCMAKE_PREFIX_PATH=/path/to/Qt/version -G "MinGW Makefiles"
 ###### MacOS
 
 ```
-cmake -B build_dir -DCMAKE_PREFIX_PATH=/path/to/Qt/version/macos -DLIBSSH_INCLUDE_DIR=/libssh/dir/include -DSPARKLE_INCLUDE_DIR=/usr/local/Caskroom/sparkle/1.27.1/Sparkle.framework/Versions/Current/Headers
+cmake -S . -B build_dir -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_PREFIX_PATH="/path/to/Qt/6.8.2/macos;$PWD/build/dependencies/install" -DSPARKLE_FRAMEWORK="$PWD/build/sparkle/Sparkle.framework" -DSPARKLE_INCLUDE_DIR="$PWD/build/sparkle/Sparkle.framework/Headers"
 ```
 
 ###### Linux
@@ -106,6 +119,32 @@ Then you can build with
 ```
 cmake --build build_dir --config Release --target caesium_image_compressor
 ```
+
+#### Tests and checks
+
+After configuring with the platform-specific command above:
+
+```sh
+cmake --build build_dir --config Release --target CsTests
+ctest --test-dir build_dir -C Release --output-on-failure
+```
+
+CTest is enabled at the build root. The suite covers output recovery, cancellation, parameter migration,
+telemetry, import deduplication and codec behavior. macOS also runs actual Qt widget flows and generates
+screenshots under the build's `test-artifacts` directory. CI builds and tests Windows, Ubuntu and macOS arm64;
+only macOS enables the new codecs by default. C++ formatting is defined by `.clang-format`.
+
+For a local self-contained macOS app (choose a fresh output directory):
+
+```sh
+python3 scripts/package-macos.py 'build_dir/Caesium Image Compressor.app' --qt /path/to/Qt/6.8.2/macos --library-path build/dependencies/install/lib --library-path build_dir/libcaesium-prefix/src/libcaesium/target/release
+```
+
+This copies runtime dependencies and uses ad-hoc signing for local execution; it does not publish,
+notarize or Developer ID sign a release. Windows `setup.iss` still expects a prepared package tree.
+
+For module responsibilities, data flow, compatibility boundaries, and known uncertainties,
+see [architecture notes](docs/architecture.md). Agents should also read [AGENTS.md](AGENTS.md).
 
 ### Languages and translations
 
@@ -139,7 +178,8 @@ Caesium 2.0 is currently available in:
 #### How to contribute with your translation
 
 You can help translate by opening the `resources/i18n/caesium_en_US.ts` with QtLinguist or any XML editor. Rename it to
-your language (e.g. `caesium_it_IT.ts`) and translate all the sentences. Then you can start a pull request with your
+your language (e.g. `caesium_it_IT.ts`) and translate all the sentences. Register the locale and label in
+`resources/locales.json`; append new entries to preserve legacy language indexes. CMake generates the translation resource list from this manifest. Then you can start a pull request with your
 translated file.
 See [this pull request](https://github.com/Lymphatus/caesium-image-compressor/pull/106) as an example.
 Thanks to all the people who contributed.

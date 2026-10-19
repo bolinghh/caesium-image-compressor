@@ -28,6 +28,8 @@ enum ImportFromArgsMethod {
 class Importer {
 
 public:
+    static QStringList nameFilters();
+    static QString fileDialogFilter();
     static QString getRootFolder(QList<QString> folderMap);
     static QStringList scanDirectory(const QString& directory, bool subfolders);
     static QStringList scanDirectory(const QString& directory, bool subfolders, const ImportFilters& importFilters);

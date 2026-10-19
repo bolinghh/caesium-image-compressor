@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.19)
 include(ExternalProject)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -21,7 +21,7 @@ endif ()
 set_directory_properties(PROPERTIES CLEAN_NO_CUSTOM 1)
 
 if (APPLE)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "11")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "12")
     project(${TARGET} LANGUAGES CXX OBJCXX)
 else ()
     project(${TARGET} LANGUAGES CXX)
@@ -38,7 +38,7 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-set(CMAKE_AUTOUIC_SEARCH_PATHS views)
+set(CMAKE_AUTOUIC_SEARCH_PATHS "${CMAKE_SOURCE_DIR}/views")
 
 if (APPLE)
     set(MACOSX_BUNDLE_ICON_FILE icon.icns)
@@ -54,16 +54,13 @@ if (WIN32)
 endif ()
 
 if (APPLE)
-    if (NOT DEFINED LIBSSH_INCLUDE_DIR)
-        message(FATAL_ERROR "LIBSSH_INCLUDE_DIR is not defined. Cannot find libssh include dir.")
-    else ()
-        include_directories(${LIBSSH_INCLUDE_DIR})
-    endif ()
-
-    if (NOT DEFINED SPARKLE_INCLUDE_DIR)
-        message(FATAL_ERROR "SPARKLE_INCLUDE_DIR is not defined. Cannot find Sparkle include dir.")
-    else ()
-        include_directories(${SPARKLE_INCLUDE_DIR})
+    option(ENABLE_MACOS_UPDATER "Build Sparkle integration" ON)
+    if (ENABLE_MACOS_UPDATER)
+        find_library(SPARKLE_FRAMEWORK Sparkle PATHS /Library/Frameworks REQUIRED)
+        if (SPARKLE_INCLUDE_DIR)
+            include_directories(${SPARKLE_INCLUDE_DIR})
+        endif ()
+        add_compile_definitions(HAVE_SPARKLE)
     endif ()
 endif ()
 
@@ -75,17 +72,25 @@ endif ()
 
 string(TOLOWER ${CMAKE_BUILD_TYPE} LIBCAESIUM_BUILD_TYPE)
 
-if (NOT WIN32)
+if (NOT WIN32 AND NOT LIBCAESIUM)
     link_directories(${LIBCAESIUM_SOURCE_DIR}/target/${LIBCAESIUM_BUILD_TYPE})
 endif ()
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets Core Gui Concurrent Svg Network LinguistTools REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets Core Gui Concurrent Svg Network LinguistTools REQUIRED)
+find_package(Qt6 6.8 COMPONENTS Widgets Core Gui Concurrent Svg Network LinguistTools REQUIRED)
+set(QT_VERSION_MAJOR 6)
+# Qt 6.8 references AGL even on SDKs which no longer ship it.
+if (APPLE AND TARGET WrapOpenGL::WrapOpenGL)
+    get_target_property(OPENGL_LINKS WrapOpenGL::WrapOpenGL INTERFACE_LINK_LIBRARIES)
+    list(FILTER OPENGL_LINKS EXCLUDE REGEX "AGL")
+    set_property(TARGET WrapOpenGL::WrapOpenGL PROPERTY INTERFACE_LINK_LIBRARIES "${OPENGL_LINKS}")
+endif ()
+include(CTest)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/include)
 
 set(SOURCES
         src/main.cpp
+        src/utils/Theme.cpp
         src/MainWindow.cpp
         src/models/CImage.cpp
         src/models/CImageTreeItem.cpp
@@ -114,7 +119,7 @@ set(SOURCES
         src/filters/QSliderScrollFilter.cpp
 )
 
-if (APPLE)
+if (APPLE AND ENABLE_MACOS_UPDATER)
     set(OSX_SOURCES
             src/updater/osx/AutoUpdater.cpp
             src/updater/osx/CocoaInitializer.mm
@@ -130,50 +135,42 @@ set(UI
         views/AdvancedImportDialog.ui
 )
 
-SET(TS_FILES
-        resources/i18n/caesium_en_US.ts
-        resources/i18n/caesium_it_IT.ts
-        resources/i18n/caesium_fr_FR.ts
-        resources/i18n/caesium_hi_IN.ts
-        resources/i18n/caesium_zh_CN.ts
-        resources/i18n/caesium_ja_JP.ts
-        resources/i18n/caesium_es_ES.ts
-        resources/i18n/caesium_ar_EG.ts
-        resources/i18n/caesium_de_DE.ts
-        resources/i18n/caesium_ru_RU.ts
-        resources/i18n/caesium_tr_TR.ts
-        resources/i18n/caesium_pt_BR.ts
-        resources/i18n/caesium_el_GR.ts
-        resources/i18n/caesium_id_ID.ts
-        resources/i18n/caesium_zh_TW.ts
-        resources/i18n/caesium_sk_SK.ts
-        resources/i18n/caesium_pl_PL.ts
-        resources/i18n/caesium_fi_FI.ts
-        resources/i18n/caesium_ko_KR.ts
-        resources/i18n/caesium_ro_RO.ts
-)
+# One ordered locale manifest drives both runtime choices and compiled resources.
+file(READ "${CMAKE_SOURCE_DIR}/resources/locales.json" LOCALES_JSON)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/resources/locales.json")
+string(JSON LOCALE_COUNT LENGTH "${LOCALES_JSON}")
+math(EXPR LAST_LOCALE "${LOCALE_COUNT} - 1")
+set(TS_FILES)
+set(LANGUAGE_RESOURCES "<RCC><qresource prefix=\"/\">")
+set(SEEN_LOCALES)
+foreach(INDEX RANGE 0 ${LAST_LOCALE})
+    string(JSON LOCALE GET "${LOCALES_JSON}" ${INDEX} locale)
+    if (LOCALE IN_LIST SEEN_LOCALES)
+        message(FATAL_ERROR "Duplicate locale: ${LOCALE}")
+    endif ()
+    list(APPEND SEEN_LOCALES "${LOCALE}")
+    if (NOT LOCALE STREQUAL "default")
+        if (NOT EXISTS "${CMAKE_SOURCE_DIR}/resources/i18n/caesium_${LOCALE}.ts")
+            message(FATAL_ERROR "Missing translation source for ${LOCALE}")
+        endif ()
+        list(APPEND TS_FILES "${CMAKE_SOURCE_DIR}/resources/i18n/caesium_${LOCALE}.ts")
+        string(APPEND LANGUAGE_RESOURCES "<file alias=\"i18n/caesium_${LOCALE}.qm\">${CMAKE_BINARY_DIR}/i18n/caesium_${LOCALE}.qm</file>")
+    endif ()
+endforeach()
+string(APPEND LANGUAGE_RESOURCES "</qresource></RCC>")
+file(WRITE "${CMAKE_BINARY_DIR}/languages.qrc" "${LANGUAGE_RESOURCES}")
 
 set_source_files_properties(${TS_FILES} PROPERTIES OUTPUT_LOCATION ${CMAKE_BINARY_DIR}/i18n)
-if (QT_VERSION_MAJOR EQUAL "6")
-    qt6_create_translation(QM_FILES
-            ${CMAKE_SOURCE_DIR}
-            ${TS_FILES}
-            OPTIONS "-no-obsolete"
-            OPTIONS "-no-ui-lines"
-    )
-else ()
-    qt5_create_translation(QM_FILES
-            ${CMAKE_SOURCE_DIR}
-            ${TS_FILES}
-            OPTIONS "-no-obsolete"
-            OPTIONS "-no-ui-lines"
-    )
-endif ()
-configure_file(resources/languages.qrc ${CMAKE_BINARY_DIR} COPYONLY)
+qt6_add_translation(QM_FILES ${TS_FILES})
 
 set(RESOURCES
         ${CMAKE_BINARY_DIR}/languages.qrc
         resources/resources.qrc)
+
+set(CORE_SOURCES src/models/CImage.cpp src/utils/Utils.cpp src/services/Importer.cpp
+    src/widgets/QCaesiumMessageBox.cpp src/services/OutputFiles.cpp src/services/CompressionTask.cpp src/services/CompressionParameters.cpp src/services/ImportTask.cpp src/services/ImageCodec.cpp
+    src/exceptions/ImageNotSupportedException.cpp src/exceptions/ImageTooBigException.cpp src/network/NetworkOperations.cpp)
+list(REMOVE_ITEM SOURCES ${CORE_SOURCES})
 
 if (WIN32)
     add_executable(${TARGET} WIN32 ${SOURCES} ${UI} ${RESOURCES} ${CAESIUM_ICON} ${QM_FILES})
@@ -185,15 +182,9 @@ else ()
     if (NOT LIBCAESIUM)
         install(
                 FILES ${LIBCAESIUM_SOURCE_DIR}/target/${LIBCAESIUM_BUILD_TYPE}/libcaesium.so
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+                DESTINATION ${CMAKE_INSTALL_LIBDIR}
         )
-        install(
-                CODE "execute_process(
-                COMMAND ${CMAKE_COMMAND} -E create_symlink
-                ${CMAKE_INSTALL_PREFIX}/lib/libcaesium.so
-                /usr/lib/libcaesium.so
-            )"
-        )
+
     endif ()
 endif ()
 
@@ -208,6 +199,8 @@ set(CARGO_TARGET "")
 if (WIN32)
     set(CARGO_TARGET "--target=x86_64-pc-windows-gnu")
     set(LIBCAESIUM_EXTERNAL_PATH ${LIBCAESIUM_SOURCE_DIR}/target/x86_64-pc-windows-gnu/${LIBCAESIUM_BUILD_TYPE}/caesium.dll)
+elseif (APPLE)
+    set(LIBCAESIUM_EXTERNAL_PATH ${LIBCAESIUM_SOURCE_DIR}/target/${LIBCAESIUM_BUILD_TYPE}/libcaesium.dylib)
 else ()
     set(LIBCAESIUM_EXTERNAL_PATH ${LIBCAESIUM_SOURCE_DIR}/target/${LIBCAESIUM_BUILD_TYPE}/libcaesium.so)
 endif ()
@@ -223,6 +216,7 @@ if (NOT LIBCAESIUM)
             BINARY_DIR ${LIBCAESIUM_SOURCE_DIR}
             LOG_OUTPUT_ON_FAILURE ON
             LOG_BUILD ON
+            UPDATE_DISCONNECTED TRUE
             BUILD_BYPRODUCTS ${LIBCAESIUM_EXTERNAL_PATH}
     )
     add_dependencies(${TARGET} libcaesium)
@@ -245,24 +239,58 @@ endif ()
 # --- WinSparkle ---
 
 if (APPLE)
-    set(OSX_FRAMEWORKS "-framework AppKit -framework Carbon -framework Foundation -framework ApplicationServices -framework Sparkle")
+    set(OSX_FRAMEWORKS "-framework AppKit -framework Carbon -framework Foundation -framework ApplicationServices")
+    if (ENABLE_MACOS_UPDATER)
+        list(APPEND OSX_FRAMEWORKS ${SPARKLE_FRAMEWORK})
+    endif ()
     set_target_properties(${TARGET} PROPERTIES MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/Info.plist" LINK_FLAGS "-F/Library/Frameworks -Wl -rpath @loader_path/../Frameworks")
 endif ()
 
 set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "Caesium Image Compressor")
 if (APPLE)
-    target_link_libraries(${TARGET} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Concurrent Qt${QT_VERSION_MAJOR}::Svg Qt${QT_VERSION_MAJOR}::Network ${OSX_FRAMEWORKS} caesium)
+    target_link_libraries(${TARGET} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Concurrent Qt${QT_VERSION_MAJOR}::Svg Qt${QT_VERSION_MAJOR}::Network ${OSX_FRAMEWORKS})
 elseif (WIN32)
-    target_link_libraries(${TARGET} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Concurrent Qt${QT_VERSION_MAJOR}::Svg Qt${QT_VERSION_MAJOR}::Network winsparkle ${LIBCAESIUM_SOURCE_DIR}/target/x86_64-pc-windows-gnu/${LIBCAESIUM_BUILD_TYPE}/caesium.dll)
+    target_link_libraries(${TARGET} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Concurrent Qt${QT_VERSION_MAJOR}::Svg Qt${QT_VERSION_MAJOR}::Network winsparkle)
 else ()
-    set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "caesium-image-compressor")
+    set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "caesium-image-compressor" INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
     target_link_libraries(${TARGET} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Concurrent Qt${QT_VERSION_MAJOR}::Svg Qt${QT_VERSION_MAJOR}::Network)
-    if (LIBCAESIUM)
-        target_link_libraries(${TARGET} PRIVATE ${LIBCAESIUM})
-    else ()
-        target_link_libraries(${TARGET} PRIVATE caesium)
-    endif ()
+
 endif ()
 
-add_subdirectory(tests)
-add_test(NAME CsTests COMMAND CsTests)
+add_library(caesium_core STATIC ${CORE_SOURCES})
+target_include_directories(caesium_core PUBLIC src src/include)
+option(ENABLE_HEIF "Enable AVIF/HEIC codecs" ${APPLE})
+if (ENABLE_HEIF)
+    find_package(libheif 1.23.6 EXACT CONFIG REQUIRED)
+    find_package(exiv2 0.28.9 CONFIG REQUIRED)
+    target_compile_definitions(caesium_core PUBLIC CAESIUM_WITH_HEIF CAESIUM_WITH_METADATA)
+    target_link_libraries(caesium_core PUBLIC heif exiv2lib)
+endif ()
+target_link_libraries(caesium_core PUBLIC Qt6::Widgets Qt6::Concurrent Qt6::Svg Qt6::Network)
+if (LIBCAESIUM)
+    target_link_libraries(caesium_core PUBLIC ${LIBCAESIUM})
+elseif (WIN32)
+    target_link_libraries(caesium_core PUBLIC ${LIBCAESIUM_EXTERNAL_PATH})
+else ()
+    target_link_libraries(caesium_core PUBLIC caesium)
+endif ()
+if (TARGET libcaesium)
+    add_dependencies(caesium_core libcaesium)
+endif ()
+target_link_libraries(${TARGET} PRIVATE caesium_core)
+if (BUILD_TESTING)
+    add_subdirectory(tests)
+endif ()
+
+if (WIN32 AND NOT LIBCAESIUM)
+    add_custom_command(TARGET ${TARGET} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${LIBCAESIUM_EXTERNAL_PATH}" "$<TARGET_FILE_DIR:${TARGET}>")
+    if (BUILD_TESTING)
+        add_custom_command(TARGET CsTests POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${LIBCAESIUM_EXTERNAL_PATH}" "$<TARGET_FILE_DIR:CsTests>")
+    endif ()
+endif ()
+if (WIN32)
+    add_custom_command(TARGET ${TARGET} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${WINSPARKLE_LIB_DIR}/WinSparkle.dll" "$<TARGET_FILE_DIR:${TARGET}>")
+endif ()

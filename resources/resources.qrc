@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
+        <file>locales.json</file>
         <file>icons/logo.png</file>
         <file>icons/logo_mono.png</file>
         <file>icons/compression_statuses/compressed.svg</file>

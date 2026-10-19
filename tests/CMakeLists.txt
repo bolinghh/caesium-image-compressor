@@ -1,22 +1,20 @@
-cmake_minimum_required(VERSION 3.5)
-
-project(CsTests LANGUAGES CXX)
-
-find_package(QT NAMES Qt5 Qt6 COMPONENTS Test REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Test REQUIRED)
-
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-enable_testing()
-
-add_executable(CsTests main.cpp ImporterTests.cpp ImporterTests.h ../src/services/Importer.cpp)
+find_package(Qt6 COMPONENTS Test REQUIRED)
+add_executable(CsTests main.cpp ImporterTests.cpp ReliabilityTests.cpp)
+target_link_libraries(CsTests PRIVATE caesium_core Qt6::Test)
 add_test(NAME CsTests COMMAND CsTests)
+set_tests_properties(CsTests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 60)
 
-target_link_libraries(CsTests PRIVATE Qt${QT_VERSION_MAJOR}::Test Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Gui Qt${QT_VERSION_MAJOR}::Concurrent Qt${QT_VERSION_MAJOR}::Svg Qt${QT_VERSION_MAJOR}::Network)
-
+if (APPLE)
+    set(UITEST_SOURCES ${SOURCES})
+    list(REMOVE_ITEM UITEST_SOURCES src/main.cpp)
+    list(TRANSFORM UITEST_SOURCES PREPEND "${CMAKE_SOURCE_DIR}/")
+    set(UITEST_PLATFORM ${OSX_SOURCES} ${UI})
+    list(TRANSFORM UITEST_PLATFORM PREPEND "${CMAKE_SOURCE_DIR}/")
+    set(UITEST_RESOURCES "${CMAKE_BINARY_DIR}/languages.qrc" "${CMAKE_SOURCE_DIR}/resources/resources.qrc")
+    add_executable(UiTests UiTests.cpp ${UITEST_SOURCES} ${UITEST_PLATFORM} ${UITEST_RESOURCES})
+    target_link_libraries(UiTests PRIVATE caesium_core Qt6::Test ${OSX_FRAMEWORKS})
+    target_compile_definitions(UiTests PRIVATE CAESIUM_TEST_ARTIFACT_DIR="${CMAKE_BINARY_DIR}/test-artifacts")
+    add_dependencies(UiTests ${TARGET})
+    add_test(NAME UiTests COMMAND UiTests)
+    set_tests_properties(UiTests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 60)
+endif ()

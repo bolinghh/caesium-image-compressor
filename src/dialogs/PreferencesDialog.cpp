@@ -160,7 +160,7 @@ int PreferencesDialog::getLocaleIndex()
     int localeIndex = 0;
     if (localeConf.typeId() == QVariant::Int || localeConf.typeId() == QVariant::LongLong) {
         localeIndex = localeConf.toInt();
-        QString locale = LanguageManager::getTranslations().at(localeIndex).locale;
+        QString locale = LanguageManager::getTranslations().value(localeIndex, { "default", "Default" }).locale;
         localeIndex = LanguageManager::findSortedIndex(locale);
     } else if (localeConf.typeId() == QVariant::String) {
         localeIndex = LanguageManager::findSortedIndex(localeConf.toString());

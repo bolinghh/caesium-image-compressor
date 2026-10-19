@@ -14,7 +14,7 @@ private:
     static QString getBaseEndpoint();
 
 public:
-    NetworkOperations();
+    explicit NetworkOperations(QString endpoint = {}, QObject* parent = nullptr);
 
     void requestToken();
     void updateSystemInfo();

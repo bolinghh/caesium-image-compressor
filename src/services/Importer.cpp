@@ -38,7 +38,7 @@ bool Importer::passesFilters(const QFileInfo& fileInfo, const ImportFilters& imp
     if (importFilters.skipBySizeFilter.enabled) {
         int unit = importFilters.skipBySizeFilter.unit;
         int condition = importFilters.skipBySizeFilter.condition;
-        int size = importFilters.skipBySizeFilter.size << (unit * 10);
+        quint64 size = quint64(qMax(0, importFilters.skipBySizeFilter.size)) << (qBound(0, unit, 3) * 10);
         size_t imageSize = fileInfo.size();
         if ((condition == 0 && imageSize > size) || (condition == 1 && imageSize == size) || (condition == 2 && imageSize < size)) {
             return false;
@@ -91,7 +91,7 @@ QStringList Importer::scanDirectory(bool hasFilters, const QString& directory, b
 {
     QStringList fileList;
     QDirIterator::IteratorFlags flags = subfolders ? QDirIterator::Subdirectories : QDirIterator::NoIteratorFlags;
-    QDirIterator it(directory, {"*.jpg", "*.jpeg", "*.png", "*.webp", "*.tif", "*.tiff"}, QDir::AllEntries, flags);
+    QDirIterator it(directory, nameFilters(), QDir::AllEntries, flags);
 
     while (it.hasNext()) {
         QString filePath = it.next();
@@ -102,4 +102,18 @@ QStringList Importer::scanDirectory(bool hasFilters, const QString& directory, b
     }
 
     return fileList;
+}
+
+QStringList Importer::nameFilters()
+{
+    QStringList result { "*.jpg", "*.jpeg", "*.png", "*.webp", "*.tif", "*.tiff" };
+#ifdef CAESIUM_WITH_HEIF
+    result << "*.avif" << "*.heic" << "*.heif";
+#endif
+    return result;
+}
+
+QString Importer::fileDialogFilter()
+{
+    return QIODevice::tr("Image Files") + " (" + nameFilters().join(' ') + ')';
 }

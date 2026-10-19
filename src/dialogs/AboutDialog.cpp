@@ -3,7 +3,7 @@
 #include "ui_AboutDialog.h"
 #include <QSettings>
 
-#ifdef Q_OS_MAC
+#if defined(Q_OS_MAC) && defined(HAVE_SPARKLE)
 #include "./updater/osx/CocoaInitializer.h"
 #include "./updater/osx/SparkleAutoUpdater.h"
 #endif
@@ -41,7 +41,7 @@ AboutDialog::~AboutDialog()
 
 void AboutDialog::onCheckForUpdatesClicked()
 {
-#ifdef Q_OS_MAC
+#if defined(Q_OS_MAC) && defined(HAVE_SPARKLE)
     ui->checkForUpdates_Button->setEnabled(false);
     CocoaInitializer initializer;
     auto updater = new SparkleAutoUpdater("https://saerasoft.com/repository/com.saerasoft.caesium/osx/appcast.xml");

@@ -5,7 +5,11 @@
 #include "../utils/Utils.h"
 
 class CImage {
-    const QList<QByteArray> supportedFormats = { "png", "jpg", "jpeg", "webp", "tiff" };
+    QList<QByteArray> supportedFormats = { "png", "jpg", "jpeg", "webp", "tiff"
+#ifdef CAESIUM_WITH_HEIF
+        , "avif", "heic"
+#endif
+    };
 
 public:
     explicit CImage(const QString& path);
@@ -23,6 +27,7 @@ public:
     size_t getCompressedSize() const;
     CImageStatus getStatus() const;
     void setStatus(const CImageStatus& value);
+    void setError(const QString& message) { status = CImageStatus::ERROR; additionalInfo = message; }
     double getRatio() const;
     QString getFormattedSavedRatio() const;
     QString getRichFormattedSavedRatio() const;
@@ -30,6 +35,7 @@ public:
     bool preview(const CompressionOptions& compressionOptions) const;
     QString getCompressedFullPath() const;
     QString getTemporaryPreviewFullPath() const;
+    QString getTemporaryPreviewFullPath(const CompressionOptions& options) const;
     QString getPreviewFullPath() const;
     size_t getTotalPixels() const;
     QString getFormattedStatus() const;

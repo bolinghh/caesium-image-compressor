@@ -2,6 +2,7 @@
 #define ADVANCEDIMPORTDIALOG_H
 
 #include <QDialog>
+#include "services/Importer.h"
 #include <QFileInfo>
 #include <QThread>
 
@@ -17,7 +18,7 @@ public:
     ~AdvancedImportDialog() override;
 
 signals:
-    void importTriggered(QStringList paths);
+    void importTriggered(QStringList paths, ImportFilters filters, bool recursive);
 
 private slots:
     void accept() override;

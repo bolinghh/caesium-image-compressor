@@ -165,3 +165,5 @@ deploy.py
 manifests
 build
 ts.py
+# Out-of-source validation builds
+/build-*/

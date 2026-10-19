@@ -1,0 +1,90 @@
+[
+  {
+    "locale": "default",
+    "label": "Default"
+  },
+  {
+    "locale": "en_US",
+    "label": "English (US)"
+  },
+  {
+    "locale": "it_IT",
+    "label": "Italiano"
+  },
+  {
+    "locale": "fr_FR",
+    "label": "Français"
+  },
+  {
+    "locale": "hi_IN",
+    "label": "हिन्दी"
+  },
+  {
+    "locale": "ja_JP",
+    "label": "日本語"
+  },
+  {
+    "locale": "zh_CN",
+    "label": "中文（中国大陆）"
+  },
+  {
+    "locale": "es_ES",
+    "label": "Español"
+  },
+  {
+    "locale": "ar_EG",
+    "label": "العَرَبِيَّة"
+  },
+  {
+    "locale": "de_DE",
+    "label": "Deutsch"
+  },
+  {
+    "locale": "ru_RU",
+    "label": "Русский"
+  },
+  {
+    "locale": "tr_TR",
+    "label": "Türkçe"
+  },
+  {
+    "locale": "pt_BR",
+    "label": "Português Brasileiro"
+  },
+  {
+    "locale": "el_GR",
+    "label": "Ελληνικά"
+  },
+  {
+    "locale": "id_ID",
+    "label": "Bahasa Indonesia"
+  },
+  {
+    "locale": "zh_TW",
+    "label": "中文（台灣）"
+  },
+  {
+    "locale": "sk_SK",
+    "label": "Slovenčina"
+  },
+  {
+    "locale": "pl_PL",
+    "label": "Polski"
+  },
+  {
+    "locale": "fi_FI",
+    "label": "Suomi"
+  },
+  {
+    "locale": "ko_KR",
+    "label": "한국어"
+  },
+  {
+    "locale": "ro_RO",
+    "label": "Română"
+  },
+  {
+    "locale": "fa_IR",
+    "label": "فارسی"
+  }
+]

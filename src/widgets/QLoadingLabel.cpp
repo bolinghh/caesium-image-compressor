@@ -5,6 +5,7 @@
 QLoadingLabel::QLoadingLabel(QWidget* parent)
     : QLabel(parent)
 {
+    setAutoFillBackground(true);
     this->animationMovie = new QMovie(":/icons/ui/loader.webp");
 }
 

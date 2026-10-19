@@ -601,6 +601,58 @@ Saved: %4 (%5%)</source>
         <source>images in list</source>
         <translation>张图片</translation>
     </message>
+    <message>
+        <source>%1 quality</source>
+        <translation>%1 质量</translation>
+    </message>
+    <message>
+        <source>AVIF / HEIC</source>
+        <translation>AVIF / HEIC</translation>
+    </message>
+    <message>
+        <source>JPEG output composites transparency on white.</source>
+        <translation>输出 JPEG 时，透明区域将合成到白色背景。</translation>
+    </message>
+    <message>
+        <source>Some images could not be imported</source>
+        <translation>部分图片无法导入</translation>
+    </message>
+    <message>
+        <source>Compression canceled</source>
+        <translation>压缩已取消</translation>
+    </message>
+    <message>
+        <source>Compression finished with errors</source>
+        <translation>压缩完成，部分图片处理失败</translation>
+    </message>
+    <message>
+        <source>Finishing active tasks...</source>
+        <translation>正在结束任务…</translation>
+    </message>
+    <message>
+        <source>Successful: %1
+Failed: %2
+Skipped: %3
+Not executed: %4</source>
+        <translation>成功：%1
+失败：%2
+跳过：%3
+未执行：%4</translation>
+    </message>
+    <message>
+        <source>Compression finished with warnings</source>
+        <translation>压缩完成，请查看提示</translation>
+    </message>
+    <message>
+        <source>Warnings: %1
+</source>
+        <translation>提示：%1
+</translation>
+    </message>
+    <message>
+        <source>Preview unavailable: %1</source>
+        <translation>无法预览：%1</translation>
+    </message>
 </context>
 <context>
     <name>PreferencesDialog</name>

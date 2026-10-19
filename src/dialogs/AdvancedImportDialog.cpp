@@ -55,21 +55,12 @@ void AdvancedImportDialog::accept()
     };
 
     for (int i = 0; i < ui->importList_ListWidget->count(); ++i) {
-        QFileInfo fileInfo(ui->importList_ListWidget->item(i)->text());
-        QString absoluteFilePath = fileInfo.absoluteFilePath();
-        if (fileInfo.isFile()) {
-            if (!Importer::passesFilters(fileInfo, importFilters)) {
-                continue;
-            }
-            fileList << absoluteFilePath;
-        } else if (fileInfo.isDir()) {
-            fileList << Importer::scanDirectory(absoluteFilePath, ui->importSubfolders_CheckBox->isChecked(), importFilters);
-        }
+        fileList << QFileInfo(ui->importList_ListWidget->item(i)->text()).absoluteFilePath();
     }
 
     QDialog::accept();
 
-    emit importTriggered(fileList);
+    emit importTriggered(fileList, importFilters, ui->importSubfolders_CheckBox->isChecked());
 }
 
 void AdvancedImportDialog::changeEvent(QEvent* event)
@@ -95,7 +86,11 @@ void AdvancedImportDialog::loadPreferences()
     ui->skipBySizeCondition_ComboBox->setCurrentIndex(QSettings().value("preferences/advaced_import/skip_by_size/condition", QSettings().value("preferences/general/skip_by_size/condition", 0).toInt()).toInt());
     ui->skipBySizeSize_SpinBox->setValue(QSettings().value("preferences/advaced_import/skip_by_size/value", QSettings().value("preferences/general/skip_by_size/value", 500).toInt()).toInt());
     ui->skipBySizeUnit_ComboBox->setCurrentIndex(QSettings().value("preferences/advaced_import/skip_by_size/unit", QSettings().value("preferences/general/skip_by_size/unit", 1).toInt()).toInt());
-    ui->filenamePattern_LineEdit->setText(QSettings().value("preferences/advaced_import/filename_pattern", "").toString());
+    QSettings settings;
+    const QString patternKey = "preferences/advanced_import/filename_pattern";
+    if (!settings.contains(patternKey))
+        settings.setValue(patternKey, settings.value("preferences/advaced_import/filename_pattern", ""));
+    ui->filenamePattern_LineEdit->setText(settings.value(patternKey).toString());
 
     this->lastOpenedDirectory = QSettings().value("extra/last_opened_directory", QStandardPaths::standardLocations(QStandardPaths::PicturesLocation).first()).toString();
 }
@@ -128,7 +123,7 @@ void AdvancedImportDialog::onAddFilesActionTriggered()
     QStringList fileList = QFileDialog::getOpenFileNames(this,
         tr("Import files..."),
         this->lastOpenedDirectory,
-        QIODevice::tr("Image Files") + " (*.jpg *.jpeg *.png *.webp *.tif *.tiff)");
+        Importer::fileDialogFilter());
 
     if (fileList.isEmpty()) {
         return;

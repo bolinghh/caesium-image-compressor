@@ -9,11 +9,12 @@
 #include <QSettings>
 #include <QStandardPaths>
 
-NetworkOperations::NetworkOperations()
+NetworkOperations::NetworkOperations(QString endpoint, QObject* parent)
+    : QObject(parent)
 {
     QSettings settings;
     this->networkClient = new QNetworkAccessManager();
-    this->baseEndpoint = getBaseEndpoint();
+    this->baseEndpoint = endpoint.isEmpty() ? getBaseEndpoint() : endpoint;
 }
 
 NetworkOperations::~NetworkOperations()
@@ -52,7 +53,7 @@ void NetworkOperations::sendUsageReport(CompressionSummary compressionSummary)
     QNetworkReply* reply = this->networkClient->post(request, QJsonDocument(requestData).toJson(QJsonDocument::Compact));
     connect(reply, &QNetworkReply::finished, [reply]() {
         if (reply->error() != QNetworkReply::NoError) {
-            qWarning() << "Usage report request failed. Error:" << reply->errorString() << "- Reply:" << reply->readAll();
+            qWarning() << "Usage report request failed. Error:" << reply->errorString();
         } else {
             qInfo() << "Usage report sent successfully";
         }
@@ -84,11 +85,10 @@ void NetworkOperations::requestToken()
                 qWarning() << "Cannot parse request token response. Error:" << parseError.errorString();
             } else {
                 QString token = dataJsonDocument.object().value("token").toString();
-                qInfo() << "Access token:" << token;
                 sts.setValue("access_token", token);
             }
         } else {
-            qWarning() << "Access token request failed. Error:" << reply->errorString() << "- Reply:" << reply->readAll();
+            qWarning() << "Access token request failed. Error:" << reply->errorString();
         }
         reply->deleteLater();
     });
@@ -106,7 +106,7 @@ void NetworkOperations::updateSystemInfo()
     QNetworkReply* reply = this->networkClient->post(request, QJsonDocument(requestData).toJson(QJsonDocument::Compact));
     connect(reply, &QNetworkReply::finished, [reply]() {
         if (reply->error() != QNetworkReply::NoError) {
-            qWarning() << "Sys info update failed. Error:" << reply->errorString() << "- Reply:" << reply->readAll();
+            qWarning() << "Sys info update failed. Error:" << reply->errorString();
         } else {
             qInfo() << "Sys info updated successfully";
         }

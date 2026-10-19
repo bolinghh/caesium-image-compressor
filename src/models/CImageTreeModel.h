@@ -25,6 +25,7 @@ public:
 
     void appendItems(QList<CImage*> imageList, QString folder = "");
 
+    void setBaseFolder(const QString& path);
     CImageTreeItem* getRootItem() const;
     bool contains(CImage* cImage);
 

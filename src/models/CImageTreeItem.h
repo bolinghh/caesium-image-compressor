@@ -28,9 +28,6 @@ public:
     QVector<CImageTreeItem*> children();
 
     CImage* getCImage() const;
-    QFuture<void> compress(const CompressionOptions& compressionOptions);
-    QFuture<void> compressOnlyFailed(const CompressionOptions& compressionOptions);
-    void setCompressionCanceled(bool canceled);
 
     void setData(QStringList data);
 
@@ -39,9 +36,6 @@ private:
     QVector<QVariant> m_itemData;
     CImage* cImage;
     CImageTreeItem* m_parentItem;
-    bool compressionCanceled = false;
-
-    QFuture<void> performCompression(const CompressionOptions& compressionOptions, bool onlyFailed = false);
 };
 
 #endif // CIMAGETREEITEM_H

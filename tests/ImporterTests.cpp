@@ -9,29 +9,29 @@ ImporterTests::~ImporterTests()
 
 void ImporterTests::initTestCase()
 {
-    Q_ASSERT(true);
+    QVERIFY(true);
 }
 
 void ImporterTests::cleanupTestCase()
 {
-    Q_ASSERT(true);
+    QVERIFY(true);
 }
 
 void ImporterTests::rootFolderTestCase()
 {
     QStringList folderMap = QStringList() << "/";
     QString rootFolder = Importer::getRootFolder(folderMap);
-    Q_ASSERT(rootFolder == QString("/"));
+    QVERIFY(rootFolder == QString("/"));
 
     folderMap = QStringList() << "/1" << "/1/1-1";
     rootFolder = Importer::getRootFolder(folderMap);
-    Q_ASSERT(rootFolder == QString("/1"));
+    QVERIFY(rootFolder == QString("/1"));
 
     folderMap = QStringList() << "/1/1-1" << "/1/1-2";
     rootFolder = Importer::getRootFolder(folderMap);
-    Q_ASSERT(rootFolder == QString("/1"));
+    QVERIFY(rootFolder == QString("/1"));
 
     folderMap = QStringList() << "/1/1-1" << "/1/1-2";
     rootFolder = Importer::getRootFolder(folderMap);
-    Q_ASSERT(rootFolder == QString("/1"));
+    QVERIFY(rootFolder == QString("/1"));
 }

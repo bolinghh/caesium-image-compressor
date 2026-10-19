@@ -603,6 +603,58 @@ Saved: %4 (%5%)</translation>
         <source>images in list</source>
         <translation>images in list</translation>
     </message>
+    <message>
+        <source>%1 quality</source>
+        <translation>%1 quality</translation>
+    </message>
+    <message>
+        <source>AVIF / HEIC</source>
+        <translation>AVIF / HEIC</translation>
+    </message>
+    <message>
+        <source>JPEG output composites transparency on white.</source>
+        <translation>JPEG output composites transparency on white.</translation>
+    </message>
+    <message>
+        <source>Some images could not be imported</source>
+        <translation>Some images could not be imported</translation>
+    </message>
+    <message>
+        <source>Compression canceled</source>
+        <translation>Compression canceled</translation>
+    </message>
+    <message>
+        <source>Compression finished with errors</source>
+        <translation>Compression finished with errors</translation>
+    </message>
+    <message>
+        <source>Finishing active tasks...</source>
+        <translation>Finishing active tasks...</translation>
+    </message>
+    <message>
+        <source>Successful: %1
+Failed: %2
+Skipped: %3
+Not executed: %4</source>
+        <translation>Successful: %1
+Failed: %2
+Skipped: %3
+Not executed: %4</translation>
+    </message>
+    <message>
+        <source>Compression finished with warnings</source>
+        <translation>Compression finished with warnings</translation>
+    </message>
+    <message>
+        <source>Warnings: %1
+</source>
+        <translation>Warnings: %1
+</translation>
+    </message>
+    <message>
+        <source>Preview unavailable: %1</source>
+        <translation>Preview unavailable: %1</translation>
+    </message>
 </context>
 <context>
     <name>PreferencesDialog</name>

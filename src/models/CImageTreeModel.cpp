@@ -164,7 +164,7 @@ QVariant CImageTreeModel::data(const QModelIndex& index, int role) const
             return QIcon(":/icons/compression_statuses/compressed.svg").pixmap(16, 16);
         } else if (status == CImageStatus::ERROR) {
             return QIcon(":/icons/compression_statuses/error.svg").pixmap(16, 16);
-        } else if (status == CImageStatus::WARNING) {
+        } else if ((status == CImageStatus::WARNING || status == CImageStatus::SKIPPED)) {
             return QIcon(":/icons/compression_statuses/warning.svg").pixmap(16, 16);
         } else if (status == CImageStatus::COMPRESSING) {
             return QIcon(":/icons/compression_statuses/compressing.svg").pixmap(16, 16);
@@ -232,4 +232,10 @@ double CImageTreeModel::originalItemsSize() const
         totalSize += size;
     }
     return totalSize;
+}
+
+void CImageTreeModel::setBaseFolder(const QString& path)
+{
+    baseFolder = path;
+    if (rowCount() > 0) emit dataChanged(index(0, 0), index(rowCount() - 1, columnCount() - 1));
 }

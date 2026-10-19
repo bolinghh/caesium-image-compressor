@@ -1,31 +1,20 @@
 #include "LanguageManager.h"
 #include <QApplication>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QSettings>
 
 QList<CsLocale> LanguageManager::getTranslations()
 {
-    QList<CsLocale> translations = {
-        { QString("default"), QString("Default") },
-        { QString("en_US"), QString("English (US)") },
-        { QString("it_IT"), QString("Italiano") },
-        { QString("fr_FR"), QString("Français") },
-        { QString("hi_IN"), QString("हिन्दी") },
-        { QString("ja_JP"), QString("日本語") },
-        { QString("zh_CN"), QString("中文（中国大陆）") },
-        { QString("es_ES"), QString("Español") },
-        { QString("ar_EG"), QString("العَرَبِيَّة") },
-        { QString("de_DE"), QString("Deutsch") },
-        { QString("ru_RU"), QString("Русский") },
-        { QString("tr_TR"), QString("Türkçe") },
-        { QString("pt_BR"), QString("Português Brasileiro") },
-        { QString("el_GR"), QString("Ελληνικά") },
-        { QString("id_ID"), QString("Bahasa Indonesia") },
-        { QString("zh_TW"), QString("中文（台灣）") },
-        { QString("sk_SK"), QString("Slovenčina") },
-        { QString("pl_PL"), QString("Polski") },
-        { QString("fi_FI"), QString("Suomi") },
-    };
-
+    QFile resource(":/locales.json");
+    QList<CsLocale> translations;
+    if (!resource.open(QIODevice::ReadOnly)) return { { "default", "Default" }, { "en_US", "English (US)" } };
+    const auto entries = QJsonDocument::fromJson(resource.readAll()).array();
+    for (const auto& value : entries) {
+        const auto entry = value.toObject();
+        translations.append({ entry.value("locale").toString(), entry.value("label").toString() });
+    }
     return translations;
 }
 
@@ -33,9 +22,7 @@ QList<CsLocale> LanguageManager::getSortedTranslations()
 {
     QList<CsLocale> sortedList = getTranslations();
     std::sort(sortedList.begin(), sortedList.end(), [](const CsLocale& a, const CsLocale& b) {
-        if (a.label == "Default") {
-            return true;
-        }
+        if (a.locale == "default" || b.locale == "default") return a.locale == "default" && b.locale != "default";
         return a.label < b.label;
     });
     return sortedList;
@@ -58,7 +45,7 @@ QString LanguageManager::getLocaleFromPreferences(const QVariant& preference)
 {
     if (preference.typeId() == QVariant::Int || preference.typeId() == QVariant::LongLong) {
         int localeIndex = preference.toInt();
-        return LanguageManager::getTranslations().at(localeIndex).locale;
+        return LanguageManager::getTranslations().value(localeIndex, { "default", "Default" }).locale;
     } else if (preference.typeId() == QVariant::String) {
         return preference.toString();
     } else {

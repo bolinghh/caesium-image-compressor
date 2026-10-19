@@ -14,7 +14,8 @@ enum class CImageStatus {
     COMPRESSING,
     COMPRESSED,
     ERROR,
-    WARNING
+    WARNING,
+    SKIPPED
 };
 
 constexpr int CIMAGE_COLUMNS_SIZE = 5;
@@ -126,6 +127,9 @@ typedef struct CompressionOptions {
     FileDatesOutputOption datesMap;
     CompressionMode compressionMode;
     MaxOutputSize maxOutputSize;
+    QString plannedOutputPath;
+    int avifQuality = 80;
+    int heicQuality = 80;
 } CompressionOptions;
 
 typedef struct FileDates {
@@ -142,10 +146,11 @@ typedef struct CompressionSummary {
 } CompressionSummary;
 
 typedef struct ImagePreview {
-    QPixmap image;
+    QImage image;
     QFileInfo fileInfo;
     size_t originalSize;
-    bool isOnFlyPreview;
+    bool isOnFlyPreview = false;
+    QString error;
     QString format;
 } ImagePreview;
 

@@ -1,0 +1,30 @@
+{
+  "libde265": {
+    "url": "https://github.com/strukturag/libde265/releases/download/v1.1.3/libde265-1.1.3.tar.gz",
+    "sha256": "554228bd17788c99a7e63b37ab5634722190e6e2bf60c1dcb01cef328e133905",
+    "cmake": ["-DENABLE_DECODER=OFF", "-DENABLE_ENCODER=OFF", "-DENABLE_SDL=OFF"]
+  },
+  "x265": {
+    "url": "https://github.com/Multicorewareinc/x265/releases/download/4.3/x265_4.3.tar.gz",
+    "sha256": "83c53e4c8bbb8f1e33ed59e10a7d621d1d7801ca853910c3eb41f038b8ffb121",
+    "subdirectory": "source",
+    "cmake": ["-DENABLE_CLI=OFF", "-DENABLE_ASSEMBLY=OFF", "-DENABLE_SHARED=ON", "-DHIGH_BIT_DEPTH=OFF"]
+  },
+  "aom": {
+    "git": "https://aomedia.googlesource.com/aom.git",
+    "tag": "v3.15.2",
+    "revision": "af3dc9aadc793c1b00edc003e3fc19a44fdeb574",
+    "cmake": ["-DENABLE_TESTS=OFF", "-DENABLE_EXAMPLES=OFF", "-DENABLE_DOCS=OFF", "-DENABLE_TOOLS=OFF"]
+  },
+  "libheif": {
+    "url": "https://github.com/strukturag/libheif/releases/download/v1.23.6/libheif-1.23.6.tar.gz",
+    "sha256": "4484346dc5995319dbc11e3a1c35d0a2ec46511ce370900869337fd2c7033125",
+    "cmake": ["-DBUILD_TESTING=OFF", "-DWITH_EXAMPLES=OFF", "-DWITH_GDK_PIXBUF=OFF", "-DENABLE_PLUGIN_LOADING=OFF", "-DENABLE_EXPERIMENTAL_FEATURES=OFF", "-DWITH_LIBDE265=ON", "-DWITH_LIBDE265_PLUGIN=OFF", "-DWITH_X265=ON", "-DWITH_X265_PLUGIN=OFF", "-DWITH_AOM_ENCODER=ON", "-DWITH_AOM_ENCODER_PLUGIN=OFF", "-DWITH_AOM_DECODER=ON", "-DWITH_AOM_DECODER_PLUGIN=OFF", "-DWITH_DAV1D=OFF", "-DWITH_X264=OFF", "-DWITH_FFMPEG_DECODER=OFF", "-DWITH_OpenH264=OFF", "-DWITH_JPEG_DECODER=OFF", "-DWITH_JPEG_ENCODER=OFF", "-DWITH_OpenJPEG_DECODER=OFF", "-DWITH_OpenJPEG_ENCODER=OFF", "-DWITH_LIBSHARPYUV=OFF"]
+  },
+  "exiv2": {
+    "git": "https://github.com/Exiv2/exiv2.git",
+    "tag": "v0.28.9",
+    "revision": "b0859fc61fea5dedfc898aece6b15893ddf4314e",
+    "cmake": ["-DEXIV2_ENABLE_INIH=OFF", "-DEXIV2_ENABLE_BROTLI=OFF", "-DEXIV2_ENABLE_NLS=OFF", "-DEXIV2_BUILD_EXIV2_COMMAND=OFF", "-DEXIV2_BUILD_SAMPLES=OFF", "-DEXIV2_BUILD_UNIT_TESTS=OFF", "-DEXIV2_ENABLE_XMP=ON"]
+  }
+}

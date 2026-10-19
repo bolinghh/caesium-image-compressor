@@ -8,20 +8,20 @@
 QZoomGraphicsView::QZoomGraphicsView(QWidget* parent)
     : QGraphicsView(parent)
 {
-    this->graphicsScene = new QGraphicsScene();
+    this->graphicsScene = new QGraphicsScene(this);
     this->setScene(this->graphicsScene);
 
     this->loaderLabel = new QLabel();
     this->loaderLabel->setAutoFillBackground(false);
     this->loaderLabel->setAttribute(Qt::WA_NoSystemBackground);
-    this->loaderMovie = new QMovie(":/icons/ui/loader.webp");
+    this->loaderMovie = new QMovie(":/icons/ui/loader.webp", QByteArray(), this);
     this->loaderMovie->setScaledSize(QSize(40, 40));
     this->loaderLabel->setMovie(this->loaderMovie);
     this->loaderMovie->start();
     this->loaderProxyWidget = this->graphicsScene->addWidget(this->loaderLabel);
     this->loaderProxyWidget->hide();
 
-    this->pixmapItem = new QGraphicsPixmapItem();
+    this->pixmapItem = this->graphicsScene->addPixmap(QPixmap());
 }
 
 void QZoomGraphicsView::wheelEvent(QWheelEvent* event)
@@ -100,15 +100,11 @@ void QZoomGraphicsView::setZoomEnabled(bool l)
 
 void QZoomGraphicsView::showPixmap(const QPixmap& pixmap)
 {
-    this->pixmapItem = this->graphicsScene->addPixmap(pixmap);
-    this->graphicsScene->setSceneRect(this->graphicsScene->itemsBoundingRect());
+    this->pixmapItem->setPixmap(pixmap);
+    this->graphicsScene->setSceneRect(this->pixmapItem->boundingRect());
 }
 
 void QZoomGraphicsView::removePixmap()
 {
-    qsizetype indexOf = this->graphicsScene->items().indexOf(this->pixmapItem);
-    if (indexOf != -1) {
-        auto* item = this->graphicsScene->items().at(indexOf);
-        delete item;
-    }
+    this->pixmapItem->setPixmap(QPixmap());
 }

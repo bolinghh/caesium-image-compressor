@@ -1,4 +1,7 @@
 #include "CImage.h"
+#include "services/OutputFiles.h"
+#include "services/CompressionParameters.h"
+#include "services/ImageCodec.h"
 #include "../include/libcaesium.h"
 
 #include "./exceptions/ImageNotSupportedException.h"
@@ -12,20 +15,8 @@
 CImage::CImage(const QString& path)
 {
     QFileInfo fileInfo = QFileInfo(path);
-    auto* imageReader = new QImageReader();
-    imageReader->setAutoDetectImageFormat(true);
-    imageReader->setAutoTransform(true);
-    imageReader->setFileName(path);
-    this->format = imageReader->format().toLower();
-    if (this->format == "jpeg") {
-        this->format = "jpg";
-    }
-
-    if (!supportedFormats.contains(format)) {
-        delete imageReader;
-        throw ImageNotSupportedException();
-    }
-
+    this->format = ImageCodec::detect(path);
+    if (!supportedFormats.contains(format)) throw ImageNotSupportedException();
     this->extension = fileInfo.suffix();
     this->size = fileInfo.size();
 
@@ -38,7 +29,7 @@ CImage::CImage(const QString& path)
     this->fileName = fileInfo.fileName();
     this->compressedSize = this->size;
 
-    QSize imageSize = getSizeWithMetadata(imageReader);
+    QSize imageSize = ImageCodec::decode(path).pixels.size();
     this->width = imageSize.width();
     this->height = imageSize.height();
 
@@ -49,7 +40,6 @@ CImage::CImage(const QString& path)
 
     this->status = CImageStatus::UNCOMPRESSED;
 
-    delete imageReader;
 }
 
 bool operator==(const CImage& c1, const CImage& c2)
@@ -105,188 +95,114 @@ QString CImage::getFullPath() const
     return this->fullPath;
 }
 
-bool CImage::preview(const CompressionOptions& compressionOptions) const
+bool CImage::preview(const CompressionOptions& options) const
 {
-    QString inputFullPath = this->fullPath;
-    QFileInfo inputFileInfo(inputFullPath);
-    QString outputFullPath = this->getTemporaryPreviewFullPath();
-    if (outputFullPath.isEmpty()) {
-        return false;
-    }
-    const QString& outputFormat = getOutputSupportedFormats()[compressionOptions.format];
-    bool convert = compressionOptions.format != 0 && this->getFormat().compare(outputFormat, Qt::CaseInsensitive) != 0;
-    FileDates inputFileDates = {
-        inputFileInfo.fileTime(QFile::FileBirthTime),
-        inputFileInfo.fileTime(QFile::FileModificationTime),
-        inputFileInfo.fileTime(QFile::FileAccessTime)
-    };
-    CCSParameters r_parameters = this->getCSParameters(compressionOptions);
-    if (convert) {
-        QImage imageToBeConverted = QImage(inputFullPath);
-        bool conversionSuccess = imageToBeConverted.save(outputFullPath, getOutputSupportedFormats().at(compressionOptions.format).toLower().toUtf8().constData(), 100);
-        if (!conversionSuccess) {
-            return false;
-        }
-        inputFullPath = outputFullPath;
-    }
-    size_t maxOutputSize = getMaxOutputSizeInBytes(compressionOptions.maxOutputSize, inputFileInfo.size());
-
-    CCSResult result = compressionOptions.compressionMode == SIZE ? c_compress_to_size(inputFullPath.toUtf8().constData(), outputFullPath.toUtf8().constData(), r_parameters, maxOutputSize, true) : c_compress(inputFullPath.toUtf8().constData(), outputFullPath.toUtf8().constData(), r_parameters);
-
-    QFileInfo outputFileInfo(outputFullPath);
-    CImage::setFileDates(outputFileInfo, compressionOptions.datesMap, inputFileDates);
-    return result.success;
+    auto snapshot = CompressionParameters::normalize(options);
+    snapshot.plannedOutputPath = getTemporaryPreviewFullPath(snapshot);
+    if (QFileInfo::exists(snapshot.plannedOutputPath)) return true;
+    snapshot.moveOriginalFile = false;
+    snapshot.skipIfBigger = false;
+    snapshot.sameFolderAsInput = false;
+    snapshot.keepDates = false;
+    CImage copy(*this);
+    try { return copy.compress(snapshot) || QFileInfo::exists(snapshot.plannedOutputPath); }
+    catch (const std::exception&) { return false; }
 }
 
-bool CImage::compress(const CompressionOptions& compressionOptions)
+bool CImage::compress(const CompressionOptions& inputOptions)
 {
-    QString outputPath = compressionOptions.sameFolderAsInput ? this->getDirectory() : compressionOptions.outputPath;
-    QString inputFullPath = this->getFullPath();
-    QString suffix = compressionOptions.suffix;
-    QFileInfo inputFileInfo = QFileInfo(inputFullPath);
-    QString outputFormat = getOutputSupportedFormats()[compressionOptions.format];
-    bool convert = compressionOptions.format != 0 && this->format.compare(outputFormat, Qt::CaseInsensitive) != 0;
-    this->additionalInfo = "";
-    if (!inputFileInfo.exists()) {
-        qCritical() << "File" << inputFullPath << "does not exist.";
+    const auto compressionOptions = CompressionParameters::normalize(inputOptions);
+    this->additionalInfo.clear();
+    const QFileInfo input(this->fullPath);
+    if (!input.exists()) {
         this->additionalInfo = QIODevice::tr("Input file does not exist");
         return false;
     }
-    QString outputSuffix = this->extension;
-    if (compressionOptions.format != 0) {
-        outputSuffix = getOutputSupportedFormats()[compressionOptions.format].toLower();
+    QString output = compressionOptions.plannedOutputPath;
+    if (output.isEmpty())
+        output = OutputFiles::plan({ this->fullPath }, compressionOptions).value(0);
+    if (output.isEmpty() || !QDir().mkpath(QFileInfo(output).absolutePath())) {
+        this->additionalInfo = QIODevice::tr("Cannot make output path, check your permissions");
+        return false;
     }
-
-    QString fullFileName = inputFileInfo.completeBaseName() + suffix + "." + outputSuffix;
-    QString fullFileNameWithOriginalExtension = inputFileInfo.completeBaseName() + suffix + "." + this->extension;
-    FileDates inputFileDates = {
-        inputFileInfo.fileTime(QFile::FileBirthTime),
-        inputFileInfo.fileTime(QFile::FileModificationTime),
-        inputFileInfo.fileTime(QFile::FileAccessTime)
-    };
-
-    if (compressionOptions.keepStructure && !compressionOptions.sameFolderAsInput) {
-        outputPath = inputFileInfo.absolutePath().remove(0, compressionOptions.basePath.length());
-        outputPath = QDir::cleanPath(compressionOptions.outputPath + QDir::separator() + outputPath);
-    }
-
-    QDir outputDir(outputPath);
-    if (!outputDir.exists()) {
-        if (!outputDir.mkpath(outputPath)) {
-            qCritical() << "Cannot make path" << outputPath;
-            this->additionalInfo = QIODevice::tr("Cannot make output path, check your permissions");
-            return false;
-        }
-    }
-
-    QString tempFileFullPath = "";
-
-    QString outputFullPath = outputDir.absoluteFilePath(fullFileName);
-    bool outputAlreadyExists = QFile(outputFullPath).exists();
-
-    QTemporaryFile tempFile(outputPath + QDir::separator() + inputFileInfo.completeBaseName() + ".XXXXXXXX." + outputSuffix);
-    if (tempFile.open()) {
-        tempFileFullPath = tempFile.fileName();
-    }
-
-    if (tempFileFullPath.isEmpty()) {
-        qCritical() << "Temporary file" << tempFileFullPath << "is empty.";
+    QTemporaryFile temporary(QFileInfo(output).absolutePath() + "/.caesium-XXXXXX");
+    if (!temporary.open()) {
         this->additionalInfo = QIODevice::tr("Temporary file creation failed");
         return false;
     }
-
-    tempFile.close();
-
-    QString inputCopyFile = inputFullPath;
-    if (convert) {
-        QImage imageToBeConverted = QImage(inputFullPath);
-        bool conversionSuccess = imageToBeConverted.save(tempFileFullPath, getOutputSupportedFormats().at(compressionOptions.format).toLower().toUtf8().constData(), 100);
-        this->additionalInfo = QIODevice::tr("File conversion failed");
-        if (!conversionSuccess) {
+    const QString temporaryPath = temporary.fileName();
+    temporary.close();
+    CCSParameters parameters = getCSParameters(compressionOptions);
+    const QString outputFormat = compressionOptions.format == 0 ? format : CompressionParameters::formatId(compressionOptions.format);
+    QTemporaryFile converted;
+    QString source = this->fullPath;
+    const bool modern = ImageCodec::isModern(format) || ImageCodec::isModern(outputFormat);
+    if (!modern && outputFormat.compare(format, Qt::CaseInsensitive) != 0) {
+        if (!converted.open()) {
+            this->additionalInfo = QIODevice::tr("Temporary file creation failed");
             return false;
         }
-        inputFullPath = tempFileFullPath;
-    }
-
-    QString previewPath = this->getTemporaryPreviewFullPath();
-    if (QFile::exists(previewPath)) {
-        if (QFile::remove(tempFileFullPath)) {
-            QFile::copy(previewPath, tempFileFullPath);
-        }
-    }
-
-    CCSParameters r_parameters = this->getCSParameters(compressionOptions);
-
-    size_t maxOutputSize = getMaxOutputSizeInBytes(compressionOptions.maxOutputSize, inputFileInfo.size());
-
-    CCSResult result = compressionOptions.compressionMode == SIZE ? c_compress_to_size(inputFullPath.toUtf8().constData(), tempFileFullPath.toUtf8().constData(), r_parameters, maxOutputSize, true) : c_compress(inputFullPath.toUtf8().constData(), tempFileFullPath.toUtf8().constData(), r_parameters);
-
-    if (result.success) {
-        QFileInfo outputInfo(tempFileFullPath);
-
-        bool outputIsBiggerThanInput = outputInfo.size() >= inputFileInfo.size() && compressionOptions.skipIfBigger;
-        bool inputAlreadyMoved = false;
-
-        // If the output is bigger, and we are converting, we should fall back to the original file with original extension
-        if (outputIsBiggerThanInput && convert) {
-            outputFullPath = outputDir.absoluteFilePath(fullFileNameWithOriginalExtension);
-            outputAlreadyExists = QFile(outputFullPath).exists();
-        }
-
-        if (outputAlreadyExists && !outputIsBiggerThanInput) {
-            if (compressionOptions.sameFolderAsInput) {
-                bool trashingResult = false;
-                if (!compressionOptions.moveOriginalFile || (compressionOptions.moveOriginalFile && compressionOptions.moveOriginalFileDestination == 0)) {
-                    trashingResult = QFile::moveToTrash(outputFullPath);
-                }
-                // Can fail in some conditions, like NAS storages. Fallback to normal remove.
-                if (!trashingResult) {
-                    QFile::remove(outputFullPath);
-                }
-                inputAlreadyMoved = true;
-            } else {
-                QFile::remove(outputFullPath);
-            }
-        }
-
-        if (!outputIsBiggerThanInput) {
-            inputCopyFile = tempFileFullPath;
-        } else {
-            this->status = CImageStatus::WARNING;
-            this->additionalInfo = QIODevice::tr("Skipped: compressed file is bigger than original");
-            if (outputAlreadyExists) {
-                QFileInfo outputFileInfo = QFileInfo(outputFullPath);
-                this->setCompressedInfo(outputFileInfo);
-                return true;
-            }
-        }
-        bool copyResult = QFile::copy(inputCopyFile, outputFullPath);
-        if (!copyResult) {
-            qCritical() << "Failed to copy from" << inputCopyFile << "to" << outputFullPath;
-            this->additionalInfo = QIODevice::tr("Cannot copy output file, check your permissions");
+        converted.close();
+        const auto image = ImageCodec::decode(source);
+        if (!ImageCodec::encode(image, converted.fileName(), outputFormat, 100, false, compressionOptions.keepMetadata, additionalInfo)) {
+            this->additionalInfo = QIODevice::tr("File conversion failed");
             return false;
         }
-        if (compressionOptions.moveOriginalFile && !inputAlreadyMoved) {
-            if (compressionOptions.moveOriginalFileDestination == 0 && !QFile::moveToTrash(this->getFullPath())) {
-                qWarning() << "Cannot move to trash file" << this->getFullPath();
-                this->additionalInfo = QIODevice::tr("Cannot move original file to trash, check your permissions");
-            } else if (compressionOptions.moveOriginalFileDestination == 1 && !QFile::remove(this->getFullPath())) {
-                qWarning() << "Cannot delete file" << this->getFullPath();
-                this->additionalInfo = QIODevice::tr("Cannot delete original file, check your permissions");
-            }
-        }
-
-        QFileInfo outputFileInfo = QFileInfo(outputFullPath);
-        if (compressionOptions.keepDates) {
-            CImage::setFileDates(outputFileInfo, compressionOptions.datesMap, inputFileDates);
-        }
-        this->setCompressedInfo(outputFileInfo);
+        source = converted.fileName();
+    }
+    bool targetMissed = false;
+    if (modern) {
+        if (!ImageCodec::process(source, temporaryPath, outputFormat, compressionOptions, additionalInfo, targetMissed)) return false;
     } else {
-        this->additionalInfo = result.error_message;
-        qCritical() << "Compression result for i:" << inputFullPath << "and o: " << tempFileFullPath << "is false. Error:" << result.error_message;
+        CCSResult result = compressionOptions.compressionMode == SIZE
+            ? c_compress_to_size(source.toUtf8().constData(), temporaryPath.toUtf8().constData(), parameters,
+                  getMaxOutputSizeInBytes(compressionOptions.maxOutputSize, input.size()), true)
+            : c_compress(source.toUtf8().constData(), temporaryPath.toUtf8().constData(), parameters);
+        if (!result.success) {
+            this->additionalInfo = QString::fromUtf8(result.error_message ? result.error_message : "Compression failed");
+            return false;
+        }
     }
-
-    return result.success;
+    try {
+        const QImage decoded = ImageCodec::decode(temporaryPath).pixels;
+        if (decoded.isNull() || ImageCodec::detect(temporaryPath) != outputFormat) {
+            this->additionalInfo = QIODevice::tr("Output validation failed");
+            return false;
+        }
+    } catch (const std::exception& error) {
+        additionalInfo = QString::fromUtf8(error.what());
+        return false;
+    }
+    // A larger result never removes the original or changes the requested extension.
+    if (compressionOptions.skipIfBigger && QFileInfo(temporaryPath).size() >= input.size()) {
+        this->status = CImageStatus::SKIPPED;
+        this->additionalInfo = QIODevice::tr("Skipped: compressed file is bigger than original");
+        setCompressedInfo(input);
+        return true;
+    }
+    const bool replacingOriginal = OutputFiles::key(output) == OutputFiles::key(this->fullPath);
+    auto operations = FileOperations::native();
+    if (replacingOriginal && compressionOptions.moveOriginalFile && compressionOptions.moveOriginalFileDestination == 0)
+        operations.remove = [](const QString& path) { return QFile::moveToTrash(path); };
+    const OutputCommit commit = OutputFiles::commit(temporaryPath, output, replacingOriginal, operations);
+    this->additionalInfo = commit.error;
+    if (targetMissed) { additionalInfo += QIODevice::tr("Target size could not be reached; smallest result returned"); status = CImageStatus::WARNING; }
+    if (!commit.success) return false;
+    if (!commit.error.isEmpty()) this->status = CImageStatus::WARNING;
+    if (compressionOptions.keepDates) {
+        setFileDates(QFileInfo(output), compressionOptions.datesMap,
+            { input.birthTime(), input.lastModified(), input.lastRead() });
+    }
+    if (compressionOptions.moveOriginalFile && !replacingOriginal) {
+        bool removed = compressionOptions.moveOriginalFileDestination == 0
+            ? QFile::moveToTrash(this->fullPath) : QFile::remove(this->fullPath);
+        if (!removed) {
+            this->additionalInfo = QIODevice::tr("Output saved, but original could not be removed");
+            this->status = CImageStatus::WARNING;
+        }
+    }
+    setCompressedInfo(QFileInfo(output));
+    return true;
 }
 
 CCSParameters CImage::getCSParameters(const CompressionOptions& compressionOptions) const
@@ -308,7 +224,7 @@ CCSParameters CImage::getCSParameters(const CompressionOptions& compressionOptio
     r_parameters.height = 0;
 
     // Resize
-    if (compressionOptions.resize) {
+    if (compressionOptions.resize && !ImageCodec::isModern(format)) {
         QImageReader imageReader(this->getFullPath());
         QSize originalSize = imageReader.size();
 
@@ -324,8 +240,7 @@ CCSParameters CImage::getCSParameters(const CompressionOptions& compressionOptio
 
 void CImage::setCompressedInfo(const QFileInfo& fileInfo)
 {
-    QImageReader imageReader(fileInfo.canonicalFilePath());
-    QSize imageSize = getSizeWithMetadata(&imageReader);
+    QSize imageSize = ImageCodec::decode(fileInfo.canonicalFilePath()).pixels.size();
     this->compressedDirectory = fileInfo.canonicalPath();
     this->compressedSize = fileInfo.size();
     this->compressedFullPath = fileInfo.canonicalFilePath();
@@ -401,6 +316,7 @@ QString CImage::getFormattedStatus() const
         return QIODevice::tr("Compressing...");
     case CImageStatus::ERROR:
         return QIODevice::tr("Error:") + " " + this->additionalInfo;
+    case CImageStatus::SKIPPED:
     case CImageStatus::WARNING:
         return this->additionalInfo;
     case CImageStatus::COMPRESSED:
@@ -427,14 +343,14 @@ QString CImage::getHashedFullPath() const
 
 QString CImage::getTemporaryPreviewFullPath() const
 {
-    QString tempFileName = hashString(this->hashedFullPath + "." + getCompressionOptionsHash(), QCryptographicHash::Sha256);
-    QString cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
-    QString temporaryPreviewFullPath = cacheDir + QDir::separator() + tempFileName;
-    bool pathCreationSuccess = QDir(cacheDir).mkpath(cacheDir);
-    if (!pathCreationSuccess) {
-        return { "" };
-    }
-    return temporaryPreviewFullPath;
+    return getTemporaryPreviewFullPath(CompressionOptions {});
+}
+
+QString CImage::getTemporaryPreviewFullPath(const CompressionOptions& options) const
+{
+    const QString cache = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/previews-v2";
+    if (!QDir().mkpath(cache)) return {};
+    return cache + '/' + CompressionParameters::cacheKey(fullPath, options);
 }
 
 QString CImage::getPreviewFullPath() const

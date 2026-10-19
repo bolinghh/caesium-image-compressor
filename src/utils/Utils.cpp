@@ -158,15 +158,21 @@ QJsonObject getSystemData()
 QJsonObject getCompressionOptionsAsJSON()
 {
     QSettings settings;
-    settings.beginGroup("compression_options");
+    const QStringList keys = {
+        "compression/jpeg_quality", "compression/jpeg_chroma_subsampling", "compression/jpeg_progressive",
+        "compression/png_quality", "compression/png_optimization_level", "compression/webp_quality",
+        "compression/tiff_method", "compression/tiff_deflate_level", "compression/mode", "compression/lossless",
+        "compression/avif_quality", "compression/heic_quality", "compression/max_output_size", "compression/max_output_size_unit",
+        "resize/fit_to", "resize/width", "resize/height", "resize/size", "resize/do_not_enlarge", "output/format_id"
+    };
     QMap<QString, QVariant> settingsMap;
-    QStringList settingsKeys = settings.allKeys();
-    QStringListIterator it(settingsKeys);
-    while (it.hasNext()) {
-        QString currentKey = it.next();
-        settingsMap.insert(currentKey, settings.value(currentKey));
+    for (const auto& key : keys) {
+        const QVariant value = settings.value("compression_options/" + key);
+        if (key != "output/format_id" && value.isValid())
+            settingsMap.insert(key, value.toInt());
+        else if (key == "output/format_id" && QStringList { "same", "jpg", "png", "webp", "tiff", "avif", "heic" }.contains(value.toString()))
+            settingsMap.insert(key, value);
     }
-    settings.endGroup();
     return QJsonObject::fromVariantMap(settingsMap);
 }
 
@@ -200,6 +206,10 @@ QStringList getOutputSupportedFormats()
         QIODevice::tr("PNG"),
         QIODevice::tr("WebP"),
         QIODevice::tr("TIFF"),
+#ifdef CAESIUM_WITH_HEIF
+        QStringLiteral("AVIF"),
+        QStringLiteral("HEIC"),
+#endif
     };
 }
 

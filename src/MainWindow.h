@@ -14,6 +14,8 @@
 #include "models/CImageSortFilterProxyModel.h"
 #include "models/CImageTreeModel.h"
 #include "network/NetworkOperations.h"
+#include "services/CompressionTask.h"
+#include "services/ImportTask.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -112,8 +114,14 @@ private:
     Ui::MainWindow* ui;
 
     CImageTreeModel* cImageModel;
-    QFutureWatcher<void>* compressionWatcher;
-    QFutureWatcher<ImagePreview>* previewWatcher;
+    CompressionTask* compressionTask;
+    QFutureWatcher<CompressionResult>* compressionWatcher;
+    bool closing = false;
+    ImportTask* importTask;
+    bool compressAfterImport = false;
+    mutable quint64 previewRequest = 0;
+    mutable QList<QFutureWatcher<ImagePreview>*> previews;
+    mutable QFutureWatcher<ImagePreview>* previewWatcher;
     QMap<QString, int> folderMap;
     AboutDialog* aboutDialog = nullptr;
     QString lastOpenedDirectory;
@@ -139,7 +147,7 @@ private:
     void initTrayIcon();
 
     void toggleUIEnabled(bool enabled) const;
-    void importFiles(const QStringList& fileList, QString baseFolder);
+    void importFiles(const QStringList& fileList, QString baseFolder, ImportFilters filters = {}, int recursive = -1);
     void removeFiles(bool all = false);
     void triggerImportFiles();
     void triggerImportFolder();
