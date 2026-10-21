@@ -13,6 +13,11 @@
 #include <QStyleHints>
 #include <QUuid>
 
+#ifdef CAESIUM_NATIVE_UI
+void startNativeInterface();
+void stopNativeInterface();
+#endif
+
 QString loadInstallationId()
 {
     if (!QSettings().contains("uuid")) {
@@ -41,6 +46,11 @@ int main(int argc, char* argv[])
     QCommandLineParser parser;
     parser.addVersionOption();
     parser.addOption({ "verify-codecs", "Verify bundled image codecs without opening a window or contacting services." });
+#ifdef CAESIUM_NATIVE_UI
+    parser.addOption({ "qt-ui", "Use the original Qt interface." });
+    parser.addOption({ "native-ui-preview", "Show the native interface with mock data and no platform services." });
+#endif
+    parser.addPositionalArgument("images", "Files or directories to import.", "[images...]");
     parser.process(a);
 
     if (parser.isSet("verify-codecs")) {
@@ -66,11 +76,27 @@ int main(int argc, char* argv[])
         }
         return 0;
     }
+#ifdef CAESIUM_NATIVE_UI
+    if (parser.isSet("native-ui-preview") && !parser.isSet("qt-ui")) {
+        startNativeInterface();
+        const int result = QApplication::exec();
+        stopNativeInterface();
+        return result;
+    }
+#endif
     loadTheme(a);
 
     qInfo() << "---- Starting application ----";
     QString uuid = loadInstallationId();
     qInfo() << "UUID:" << uuid;
+#ifdef CAESIUM_NATIVE_UI
+    if (!parser.isSet("qt-ui")) {
+        startNativeInterface();
+        const int result = QApplication::exec();
+        stopNativeInterface();
+        return result;
+    }
+#endif
     MainWindow w;
 
     QScreen* spawnScreen = w.screen();

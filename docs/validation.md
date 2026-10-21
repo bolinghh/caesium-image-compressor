@@ -51,3 +51,14 @@ The packaged executable completed `--verify-codecs` with an otherwise cleared en
 - Injected file failures do not replace physical full-disk, network-volume, power-loss or OS trash-service tests. Recovery backups are deliberately retained when restoration fails.
 - Native UI verification is targeted, not an exhaustive accessibility or display-scale review. Other translations retain their existing coverage.
 - Developer ID signing, notarization, distribution and publication were not performed. No commit was created.
+
+## SwiftUI/AppKit migration validation — 2026-10-21
+
+- Built the native macOS arm64 Release application with Qt 6.8.2, pinned modern codecs, Sparkle 1.27.1 and the Swift frontend enabled. The linked executable declares macOS 12.0. This does not establish a launch on macOS 12.
+- Four local CTest executables passed: `CsTests`, retained Qt `UiTests`, `NativeBridgeTests` and real-window `NativeUiTests`. GUI registration was explicitly enabled on this WindowServer-capable host; it remains optional for headless CI.
+- Bridge coverage includes isolated settings migration, deduplication, stable-ID removal, real compression, failed-only retry, overwrite confirmation predicates, cancellation/close, stale preview rejection, live preview format/size, and RGBA rendering through an explicit sRGB context.
+- Native GUI coverage includes real import/preview/compression, linked magnification, date-selection and percentage-size compatibility, English light/dark, Chinese, RTL, empty/completed states, settings and auxiliary sheets. Minimum-window image-viewport bounds are checked. PNGs are generated under `build-native/test-artifacts`; screenshots were visually inspected and resize/tab-layout issues corrected.
+- Independently built the retained Qt application with `ENABLE_MACOS_NATIVE_UI=OFF`, `BUILD_TESTING=OFF` and the original Unix Makefiles generator.
+- Created `build-native/review/Caesium Image Compressor.app`; cleared-environment `--verify-codecs` and `codesign --verify --deep --strict` passed. Packaging retains the existing local ad-hoc signing policy.
+- `git diff --check` and actionlint passed. The updated remote CI workflow was not executed in this session. Qt tools required normal process permissions because the restricted environment incorrectly hid the CPU's neon feature.
+- Full Xcode canvas previews, macOS 12 hardware, Intel/universal, a separate clean machine, system notification authorization/delivery, update installation, sleep/shutdown, comprehensive VoiceOver/keyboard/drag interaction and large-batch performance acceptance remain unverified. Native-only strings without community translations fall back to English.

@@ -63,7 +63,7 @@ jobs:
           mkdir -p build/sparkle
           tar -xf build/Sparkle.tar.xz -C build/sparkle
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_PREFIX_PATH="$Qt6_DIR;$PWD/build/dependencies/install" -DSPARKLE_FRAMEWORK="$PWD/build/sparkle/Sparkle.framework" -DSPARKLE_INCLUDE_DIR="$PWD/build/sparkle/Sparkle.framework/Headers"
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_PREFIX_PATH="$Qt6_DIR;$PWD/build/dependencies/install" -DSPARKLE_FRAMEWORK="$PWD/build/sparkle/Sparkle.framework" -DSPARKLE_INCLUDE_DIR="$PWD/build/sparkle/Sparkle.framework/Headers" -DENABLE_MACOS_NATIVE_UI=ON
       - run: cmake --build build --config Release --parallel 3
       - run: ctest --test-dir build -C Release --output-on-failure
       - name: Verify self-contained local bundle

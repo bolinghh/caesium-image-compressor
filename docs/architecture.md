@@ -4,6 +4,8 @@ This map describes the working-tree reliability and AVIF/HEIC changes. See [READ
 
 ## Modules and flow
 
+An optional macOS SwiftUI/AppKit frontend lives in `macos/`; see [its architecture and validation guide](macos-native-ui.md). It reuses these services through an Objective-C++ adapter, retains Qt's runtime/event loop and keeps the original Qt interface as a rollback path. `ENABLE_MACOS_NATIVE_UI` defaults OFF.
+
 | Entry | Responsibility |
 | --- | --- |
 | `src/main.cpp`, `src/utils/Theme.cpp` | Application identity, logging, theme and window startup |

@@ -16,9 +16,14 @@ CompressionTask::~CompressionTask()
 void CompressionTask::start(const QList<std::pair<int, CImage>>& images,
     const CompressionOptions& options, const QStringList& allInputs)
 {
+    startPlanned(images, options, OutputFiles::plan(allInputs, options));
+}
+
+void CompressionTask::startPlanned(const QList<std::pair<int, CImage>>& images,
+    const CompressionOptions& options, const QStringList& outputs)
+{
     Q_ASSERT(!watcher.isRunning());
     canceled = std::make_shared<std::atomic_bool>(false);
-    const QStringList outputs = OutputFiles::plan(allInputs, options);
     struct Work { int row; CImage image; CompressionOptions options; };
     QList<Work> work;
     for (const auto& entry : images) {

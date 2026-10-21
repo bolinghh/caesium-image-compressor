@@ -146,6 +146,12 @@ notarize or Developer ID sign a release. Windows `setup.iss` still expects a pre
 For module responsibilities, data flow, compatibility boundaries, and known uncertainties,
 see [architecture notes](docs/architecture.md). Agents should also read [AGENTS.md](AGENTS.md).
 
+### Native macOS interface
+
+An optional SwiftUI/AppKit frontend is available alongside the retained Qt interface.
+See the [native macOS build, rollback and verification guide](docs/macos-native-ui.md).
+Enable it with `-DENABLE_MACOS_NATIVE_UI=ON` in a fresh Ninja or Xcode build directory.
+
 ### Languages and translations
 
 The 1.0 version of Caesium had a lot of community made translations, but this 2.0 release has a whole new set of strings

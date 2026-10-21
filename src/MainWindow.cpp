@@ -193,6 +193,10 @@ MainWindow::MainWindow(QWidget* parent)
     }
 
     QCommandLineParser commandLineParser;
+#ifdef CAESIUM_NATIVE_UI
+    commandLineParser.addOption({ "qt-ui", "Use the original Qt interface." });
+    commandLineParser.addOption({ "native-ui-preview", "Show the native interface with mock data." });
+#endif
     commandLineParser.process(QApplication::arguments());
     if (const QStringList args = commandLineParser.positionalArguments(); !args.isEmpty()) {
         this->importFromArgs(args);

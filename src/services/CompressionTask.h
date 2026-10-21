@@ -28,6 +28,8 @@ public:
     ~CompressionTask() override;
     QFutureWatcher<CompressionResult> watcher;
     void start(const QList<std::pair<int, CImage>>& images, const CompressionOptions& options, const QStringList& allInputs);
+    // A UI adapter may plan destinations off the main thread, retaining the same input-order mapping.
+    void startPlanned(const QList<std::pair<int, CImage>>& images, const CompressionOptions& options, const QStringList& outputs);
     void cancel();
     bool wasCanceled() const;
     BatchOutcome outcome() const;
